@@ -30,10 +30,10 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
-app.use("/api/notify", require("./routes/notification.routes"));
-app.use("/api/auth", require("./routes/auth.routes"));
-app.use("/api/courses", require("./routes/course.routes"));
-app.use("/api/enrollments", require("./routes/enrollment.routes"));
+app.use("/notify", require("./routes/notification.routes"));
+app.use("/auth", require("./routes/auth.routes"));
+app.use("/courses", require("./routes/course.routes"));
+app.use("/enrollments", require("./routes/enrollment.routes"));
 
 
 app.get("/", (req, res) => {
