@@ -3,10 +3,17 @@ const cors = require("cors");
 require("dotenv").config();
 
 const app = express();
-app.use("/api/notify", require("./routes/notification.routes"));
 
-app.use(cors());
+// CORS configuration for production
+const corsOptions = {
+  origin: process.env.FRONTEND_URL || '*',
+  credentials: true,
+  optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
+app.use("/api/notify", require("./routes/notification.routes"));
 app.use("/api/auth", require("./routes/auth.routes"));
 app.use("/api/courses", require("./routes/course.routes"));
 app.use("/api/enrollments", require("./routes/enrollment.routes"));
