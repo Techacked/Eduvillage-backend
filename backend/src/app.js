@@ -123,9 +123,20 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ limit: "10mb", extended: true }));
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// 🛣️ ROUTE CONFIGURATION
-// ═══════════════════════════════════════════════════════════════════════════════
+// Debug endpoint to check CORS configuration
+  app.get("/cors-debug", (req, res) => {
+    res.json({
+      allowedOrigins,
+      currentOrigin: req.get('Origin'),
+      nodeEnv: process.env.NODE_ENV,
+      frontendUrl: process.env.FRONTEND_URL,
+      timestamp: new Date().toISOString()
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // 🛣️ ROUTE CONFIGURATION
+  // ═══════════════════════════════════════════════════════════════════════════════
 // API endpoints are organized by resource type
 app.use("/api/auth", require("./routes/auth.routes"));
 app.use("/api/courses", require("./routes/course.routes"));
