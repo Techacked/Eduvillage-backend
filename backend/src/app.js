@@ -11,77 +11,215 @@ require("dotenv").config();
 
 const app = express();
 
-app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
+// ═══════════════════════════════════════════════════════════════════════════════
+// 🔧 LOGGING CONFIGURATION
+// ═══════════════════════════════════════════════════════════════════════════════
+// Morgan logs all HTTP requests for monitoring and debugging
+// In production: 'combined' format provides detailed logs
+// In development: 'dev' format is concise and colorful
+const morganFormat = process.env.NODE_ENV === "production" ? "combined" : "dev";
+app.use(morgan(morganFormat));
+
+// Custom request logging for debugging
+app.use((req, res, next) => {
+  const startTime = Date.now();
+  res.on("finish", () => {
+    const duration = Date.now() - startTime;
+    const logLevel = res.statusCode >= 400 ? "⚠️" : "✓";
+    console.log(
+      `${logLevel} ${req.method} ${req.path} - ${res.statusCode} (${duration}ms)`
+    );
+  });
+  next();
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 🔐 SECURITY MIDDLEWARE
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Helmet: Sets various HTTP headers for security
+// Protects against: XSS, Clickjacking, MIME sniffing, etc.
 app.use(helmet());
+
+// XSS Clean: Sanitizes user input to prevent XSS attacks
 app.use(xssClean());
+
+// HPP: Prevents HTTP Parameter Pollution attacks
 app.use(hpp());
+
+// Cookie Parser: Required for auth token cookies
 app.use(cookieParser());
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// 🚦 RATE LIMITING
+// ═══════════════════════════════════════════════════════════════════════════════
+// Prevents brute force attacks and DDoS
+// Limits: 100 requests per 15 minutes per IP
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { message: "Too many requests, please try again later." }
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  standardHeaders: true, // Return rate limit info in RateLimit-* headers
+  legacyHeaders: false, // Disable X-RateLimit-* headers
+  message: { 
+    message: "Too many requests from this IP, please try again after 15 minutes.",
+    retryAfter: "15 minutes"
+  },
+  skip: (req) => {
+    // Skip rate limiting for health checks in production
+    return req.path === "/health" && process.env.NODE_ENV === "production";
+  }
 });
 app.use(limiter);
 
-// CORS configuration for production
+// ═══════════════════════════════════════════════════════════════════════════════
+// 🌐 CORS CONFIGURATION
+// ═══════════════════════════════════════════════════════════════════════════════
+// Securely configure Cross-Origin Resource Sharing
+// In development: Allow localhost for testing
+// In production: Only allow specified frontend domains
 const allowedOrigins = [
   process.env.CLIENT_URL,
   process.env.FRONTEND_URL,
-  'https://eduvillage-frontend123.onrender.com',
-  'http://localhost:5173',
-  'http://localhost:3000'
-].filter(Boolean);
+  "https://eduvillage-frontend123.onrender.com",
+  "http://localhost:5173",
+  "http://localhost:3000",
+  "http://127.0.0.1:5173",
+  "http://127.0.0.1:3000"
+].filter(Boolean); // Remove undefined values
 
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (server-to-server tools, mobile clients, curl)
+    // Allow requests with no origin (server-to-server, mobile, curl, postman)
     if (!origin) return callback(null, true);
 
-    if (process.env.NODE_ENV === 'development' || allowedOrigins.includes(origin)) {
+    // In development, allow all origins
+    if (process.env.NODE_ENV === "development") {
       return callback(null, true);
     }
 
-    console.warn('✗ CORS blocked from origin:', origin, 'allowed:', allowedOrigins);
-    return callback(new Error('Not allowed by CORS'));
+    // In production, only allow whitelisted origins
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    // Log blocked CORS requests for security monitoring
+    console.warn(`⚠️ CORS blocked from origin: ${origin}`);
+    console.warn(`   Allowed origins: ${allowedOrigins.join(", ")}`);
+    
+    return callback(new Error("Not allowed by CORS policy"));
   },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  optionsSuccessStatus: 200
+  credentials: true, // Allow cookies and authentication headers
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  exposedHeaders: ["X-Total-Count"], // For pagination
+  optionsSuccessStatus: 200, // For legacy browsers
+  maxAge: 86400 // 24 hours: how long preflight cache should persist
 };
 
 app.use(cors(corsOptions));
-app.use(express.json({ limit: '10mb' }));
-app.use("/notify", require("./routes/notification.routes"));
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 📦 BODY PARSER CONFIGURATION
+// ═══════════════════════════════════════════════════════════════════════════════
+// Parse application/json with size limit to prevent large payloads
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ limit: "10mb", extended: true }));
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 🛣️ ROUTE CONFIGURATION
+// ═══════════════════════════════════════════════════════════════════════════════
+// API endpoints are organized by resource type
+app.use("/api/auth", require("./routes/auth.routes"));
+app.use("/api/courses", require("./routes/course.routes"));
+app.use("/api/enrollments", require("./routes/enrollment.routes"));
+app.use("/api/notifications", require("./routes/notification.routes"));
+
+// Legacy routes (for backward compatibility)
 app.use("/auth", require("./routes/auth.routes"));
 app.use("/courses", require("./routes/course.routes"));
 app.use("/enrollments", require("./routes/enrollment.routes"));
+app.use("/notify", require("./routes/notification.routes"));
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// 🏥 HEALTH CHECK ENDPOINTS
+// ═══════════════════════════════════════════════════════════════════════════════
 
+// Root endpoint: Confirms server is running
 app.get("/", (req, res) => {
-  res.send("EduVillage Backend API is running");
-});
-
-app.get("/health", (req, res) => {
   res.status(200).json({
-    status: "ok",
-    uptime: process.uptime(),
+    message: "✓ EduVillage Backend API is running",
+    version: "1.0.0",
     environment: process.env.NODE_ENV || "development",
-    db: mongoose.connection.readyState === 1 ? "connected" : "disconnected",
     timestamp: new Date().toISOString()
   });
 });
 
-// Global error handler - ensures errors return JSON and stack in development
+// Health check endpoint: Used by Render and monitoring services
+// Returns detailed status for deployment health verification
+app.get("/health", (req, res) => {
+  const dbConnected = mongoose.connection.readyState === 1;
+  const statusCode = dbConnected ? 200 : 503;
+
+  res.status(statusCode).json({
+    status: dbConnected ? "ok" : "degraded",
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV || "development",
+    db: {
+      status: dbConnected ? "connected" : "disconnected",
+      readyState: mongoose.connection.readyState
+    },
+    timestamp: new Date().toISOString(),
+    checks: {
+      database: dbConnected ? "✓ pass" : "✗ fail",
+      api: "✓ pass"
+    }
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 📧 NOT FOUND HANDLER (404)
+// ═══════════════════════════════════════════════════════════════════════════════
+app.use((req, res) => {
+  console.warn(`🔍 404 Not Found: ${req.method} ${req.path}`);
+  res.status(404).json({
+    success: false,
+    message: "Endpoint not found",
+    path: req.path,
+    method: req.method,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ❌ GLOBAL ERROR HANDLER
+// ═══════════════════════════════════════════════════════════════════════════════
+// Catches all errors from routes and middleware
+// Ensures consistent error response format
+// Shows stack trace only in development for security
 app.use((err, req, res, next) => {
-  console.error('Unhandled error:', err && err.stack ? err.stack : err);
-  res.status(err && err.status ? err.status : 500).json({
-    message: err && err.message ? err.message : 'Server error',
-    error: err && err.message ? err.message : undefined,
-    stack: process.env.NODE_ENV === 'development' && err && err.stack ? err.stack : undefined
+  const statusCode = err.status || err.statusCode || 500;
+  const isProduction = process.env.NODE_ENV === "production";
+
+  // Log error with full context
+  console.error("❌ Error:", {
+    timestamp: new Date().toISOString(),
+    method: req.method,
+    path: req.path,
+    ip: req.ip,
+    statusCode,
+    message: err.message,
+    stack: err.stack
+  });
+
+  // Send error response
+  res.status(statusCode).json({
+    success: false,
+    message: err.message || "Internal Server Error",
+    error: isProduction ? undefined : err.message,
+    // Only show stack trace in development
+    stack: isProduction ? undefined : err.stack,
+    requestId: req.id, // For tracing (if request ID middleware is added)
+    timestamp: new Date().toISOString()
   });
 });
 
