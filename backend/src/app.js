@@ -82,41 +82,26 @@ const allowedOrigins = [
   "https://eduvillage-frontend1223.onrender.com",
   "http://localhost:5173",
   "http://localhost:3000",
-  "http://127.0.0.1:5173",
-  "http://127.0.0.1:3000"
-].filter(Boolean); 
-app.options("*", cors(corsOptions));// Remove undefined values
+].filter(Boolean);
 
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (server-to-server, mobile, curl, postman)
     if (!origin) return callback(null, true);
 
-    // In development, allow all origins
-    if (process.env.NODE_ENV === "development") {
+    if (allowedOrigins.some(o => origin && origin.startsWith(o))) { {
       return callback(null, true);
     }
 
-    // In production, only allow whitelisted origins
-    if (allowedOrigins.some(o => origin && origin.startsWith(o))) {
-      return callback(null, true);
-    }
-
-    // Log blocked CORS requests for security monitoring
-    console.warn(`⚠️ CORS blocked from origin: ${origin}`);
-    console.warn(`   Allowed origins: ${allowedOrigins.join(", ")}`);
-    
-    return callback(new Error("Not allowed by CORS policy"));
+    console.log("❌ CORS Blocked:", origin);
+    return callback(new Error("Not allowed by CORS"));
   },
-  credentials: true, // Allow cookies and authentication headers
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-  exposedHeaders: ["X-Total-Count"], // For pagination
-  optionsSuccessStatus: 200, // For legacy browsers
-  maxAge: 86400 // 24 hours: how long preflight cache should persist
+  credentials: true,
 };
 
 app.use(cors(corsOptions));
+
+// ✅ PRE-FLIGHT FIX (AFTER corsOptions defined)
+app.options("*", cors(corsOptions));
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // 📦 BODY PARSER CONFIGURATION
