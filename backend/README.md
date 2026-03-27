@@ -24,7 +24,7 @@ git push origin main
 In Render dashboard, add these environment variables:
 
 ```
-MONGO_URI=mongodb+srv://alikasif1424_db_user:hkXZMRxrlKOeaWZ@eduvillage.cuhpzej.mongodb.net/mydb?retryWrites=true&w=majority&appName=Cluster0
+MONGO_URI=mongodb+srv://alikasif9910_db_user:rZUVR1m8mk7HK6X2@cluster2.skd6lio.mongodb.net/?appName=Cluster2
 JWT_SECRET=anything
 PORT=5000
 FRONTEND_URL=https://your-frontend-url.onrender.com
