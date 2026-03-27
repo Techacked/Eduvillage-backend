@@ -79,11 +79,13 @@ app.use(limiter);
 // In production: Only allow specified frontend domains
 const allowedOrigins = [
   process.env.FRONTEND_URL,
+  "https://eduvillage-frontend1223.onrender.com",
   "http://localhost:5173",
   "http://localhost:3000",
   "http://127.0.0.1:5173",
   "http://127.0.0.1:3000"
-].filter(Boolean); // Remove undefined values
+].filter(Boolean); 
+app.options("*", cors(corsOptions));// Remove undefined values
 
 const corsOptions = {
   origin: function (origin, callback) {
@@ -96,7 +98,7 @@ const corsOptions = {
     }
 
     // In production, only allow whitelisted origins
-    if (allowedOrigins.includes(origin)) {
+    if (allowedOrigins.some(o => origin && origin.startsWith(o))) {
       return callback(null, true);
     }
 
@@ -124,7 +126,7 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ limit: "10mb", extended: true }));
 
 // Debug endpoint to check CORS configuration
-  app.get("/cors-debug", (req, res) => {
+app.get("/cors-debug", (req, res) => {
     res.json({
       allowedOrigins,
       currentOrigin: req.get('Origin'),
@@ -134,9 +136,9 @@ app.use(express.urlencoded({ limit: "10mb", extended: true }));
     });
   });
 
-  // ═══════════════════════════════════════════════════════════════════════════════
-  // 🛣️ ROUTE CONFIGURATION
-  // ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════
+// 🛣️ ROUTE CONFIGURATION
+// ═══════════════════════════════════════════════════════════════════════════════
 // API endpoints are organized by resource type
 app.use("/api/auth", require("./routes/auth.routes"));
 app.use("/api/courses", require("./routes/course.routes"));
