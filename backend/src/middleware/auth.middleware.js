@@ -2,8 +2,14 @@ const jwt = require("jsonwebtoken");
 
 module.exports = (req, res, next) => {
   try {
-    const token = req.headers.authorization && req.headers.authorization.split(" ")[1];
-    if (!token) return res.status(401).json({ message: "No token" });
+    const bearerToken = req.headers.authorization && req.headers.authorization.split(" ")[1];
+    const cookieToken = req.cookies && req.cookies.auth_token;
+    const token = bearerToken || cookieToken;
+
+    if (!token) {
+      console.warn('No auth token provided; auth header:', req.headers.authorization, 'cookies:', req.cookies);
+      return res.status(401).json({ message: "No token" });
+    }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.user = decoded;

@@ -107,6 +107,14 @@ router.post("/login", async (req, res) => {
       { expiresIn: '7d' }
     );
 
+    // Set token as secure cookie for browser clients
+    res.cookie('auth_token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'None',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
     res.json({
       token,
       user: {
