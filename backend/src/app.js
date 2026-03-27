@@ -78,9 +78,7 @@ app.use(limiter);
 // In development: Allow localhost for testing
 // In production: Only allow specified frontend domains
 const allowedOrigins = [
-  process.env.CLIENT_URL,
   process.env.FRONTEND_URL,
-  "https://eduvillage-frontend123.onrender.com",
   "http://localhost:5173",
   "http://localhost:3000",
   "http://127.0.0.1:5173",
