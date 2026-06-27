@@ -42,7 +42,7 @@ app.use((req, res, next) => {
 app.use(helmet());
 
 // XSS Clean: Sanitizes user input to prevent XSS attacks
-app.use(xssClean());
+//app.use(xssClean());
 
 // HPP: Prevents HTTP Parameter Pollution attacks
 app.use(hpp());
